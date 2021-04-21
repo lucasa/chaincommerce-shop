@@ -1,0 +1,59 @@
+pragma solidity ^0.4.24;
+
+import "truffle/Assert.sol";
+import "truffle/DeployedAddresses.sol";
+import "../contracts/Purchase.sol";
+import "../contracts/ChainCommerce.sol";
+
+contract TestCommerce {
+    string us;
+    string im;
+    string inf;
+    uint price;
+    
+    event ALL_USERS(
+        address[] addresses
+    );
+
+    event STRING_UINT(
+        string str,
+        uint num
+    );
+
+    ChainCommerce xcommerce;
+
+    constructor() public {
+        xcommerce = ChainCommerce(DeployedAddresses.ChainCommerce());
+        // ChainCommerce xcommerce = new ChainCommerce();
+    }
+
+    function testAll() public {
+        _testHelloWorld();
+        _testSell();
+    }
+
+    function _testHelloWorld() public {
+        (us, price) = xcommerce.helloWorld();
+        // (us, price) = xcommerce.helloWorld.value(10000000 wei)();
+        emit STRING_UINT(us, price);
+        emit STRING_UINT(us, price/100);
+    }
+
+    // Testing the adopt() function
+    function _testSell() public {
+        string memory _username = "fulano";
+        string memory _img = "http://chaincommerce.cc/qrcode.png";
+        string memory _info = "{'some info'}";
+
+        // // xcommerce.publishOffer.value(10 finney)(_username, _img, _info);
+        xcommerce.publishOffer(_username, _img, _info);
+
+        address[] memory users = xcommerce.getAllUsers();        
+        emit ALL_USERS(users);
+        Assert.equal(users.length, 1, "One user most be registered!");
+        
+        // (us, im, inf, price) = xcommerce.getOffer(users[0]);
+        // Assert.equal(us, "fulano", "The product name is not correct!");
+    }
+
+}

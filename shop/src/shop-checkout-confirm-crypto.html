@@ -1,0 +1,633 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/app-route/app-route.html">
+<link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="../bower_components/polymer/lib/utils/import-href.html">
+<link rel="import" href="shop-button.html">
+<link rel="import" href="shop-common-styles.html">
+<link rel="import" href="shop-form-styles.html">
+<link rel="import" href="shop-input.html">
+<link rel="import" href="shop-select.html">
+<link rel="import" href="shop-checkbox.html">
+<link rel="import" href="./carbono-connect.html">
+
+<link rel="import" href="../bower_components/confirm-dialog/confirm-dialog.html">
+
+<dom-module id="shop-checkout-confirm-crypto">
+
+  <template>
+    <style include="shop-common-styles shop-button shop-form-styles shop-input shop-select shop-checkbox">
+
+      .main-frame {
+        transition: opacity 0.5s;
+      }
+
+      :host([waiting]) .main-frame {
+        opacity: 0.1;
+      }
+
+      shop-input, shop-select {
+        font-size: 16px;
+      }
+
+      shop-select {
+        margin-bottom: 20px;
+      }
+
+      paper-spinner-lite {
+        position: fixed;
+        top: calc(50% - 14px);
+        left: calc(50% - 14px);
+      }
+
+      .billing-address-picker {
+        margin: 28px 0;
+        height: 20px;
+        @apply --layout-horizontal;
+      }
+
+      .billing-address-picker > label {
+        margin-left: 12px;
+      }
+
+      .grid {
+        margin-top: 40px;
+        @apply --layout-horizontal;
+      }
+
+      .grid > section {
+        @apply --layout-flex;
+      }
+
+      .grid > section:not(:first-child) {
+        margin-left: 80px;
+      }
+
+      .row {
+        @apply --layout-horizontal;
+        @apply --layout-end;
+      }
+
+      .column {
+        @apply --layout-vertical;
+      }
+
+      .row > .flex,
+      .input-row > * {
+        @apply --layout-flex;
+      }
+
+      .input-row > *:not(:first-child) {
+        margin-left: 8px;
+      }
+
+      .shop-select-label {
+        line-height: 20px;
+      }
+
+      .order-summary-row {
+        line-height: 24px;
+      }
+
+      .total-row {
+        font-weight: 500;
+        margin: 30px 0;
+      }
+
+      @media (max-width: 767px) {
+
+        .grid {
+          display: block;
+          margin-top: 0;
+        }
+
+        .grid > section:not(:first-child) {
+          margin-left: 0;
+        }
+
+      }
+
+    </style>
+
+    <div class="main-frame">
+      <iron-pages id="pages" selected="[[state]]" attr-for-selected="state">
+        <div state="init">
+          <iron-form id="checkoutForm" on-iron-form-response="_didReceiveResponse" on-iron-form-presubmit="_willSendRequest">
+            <form method="post" action="data/sample_success_response.json" enctype="application/x-www-form-urlencoded">
+
+              <div class="subsection" visible$="[[!_hasItems]]">
+                <p class="empty-cart">Your <iron-icon icon="shopping-cart"></iron-icon> is empty.</p>
+              </div>
+
+              <header class="subsection" visible$="[[_hasItems]]">
+                <h1>Yout Order is confirmed!</h1>
+                <h3>The ordered itens are going to be sent soon.</h3>
+                <h3>When it arrives, please confirm receipt of the shipment, to complete the transaction.</h3>
+              </header>
+              
+              <div class="subsection grid" visible$="[[_hasItems]]">
+                
+                <section>
+                  <h2 id="accountInfoHeading">Payment Method: ETHER (ETH)</h2>
+                  <h4>Set the seller's address and confirm the transaction, the total Ether value are going to be transfered from your wallet to the seller.</h4>
+
+                  <div class="row input-row">
+                      <shop-input>
+                        <input>[[myEthAddress]]</input>                        
+                        <shop-md-decorator error-message="Invalid Ethereum Address" aria-hidden="true">
+                          <label id="cryptoAddressLabel">My Ethereum Address*</label>
+                          <shop-underline></shop-underline>
+                        </shop-md-decorator>
+                      </shop-input>
+                    </div>
+
+                  <div class="row input-row">
+                    <shop-input>
+                      <input type="text" id="cryptoAddress" name="cryptoAddress" placeholder="[[cryptoAddress]]"
+                        autofocus required aria-labelledby="cryptoAddressLabel accountInfoHeading">
+                      <shop-md-decorator error-message="Invalid Ethereum Address" aria-hidden="true">
+                        <label id="cryptoAddressLabel">Crypto Address of the Seller *</label>
+                        <shop-underline></shop-underline>
+                      </shop-md-decorator>
+                    </shop-input>
+                  </div>
+
+                  <h2>Received Items</h2>
+                  <dom-repeat items="[[cart]]" as="entry">
+                    <template>
+                      <div class="row order-summary-row">
+                        <div class="flex">[[entry.item.title]]</div>
+                        <div>[[_getEntryTotal(entry)]]</div>
+                      </div>
+                    </template>
+                  </dom-repeat>
+
+                  <div class="row total-row">
+                    <div class="flex">Total Price</div>
+                    <div>[[_formatPrice(total)]]</div>
+                  </div>
+
+                  <div class="row total-row">
+                    <div class="flex">Total ETHER
+                      <BR>Applied Tax: 1 Ether costs [[_formatTaxDolarEther(tax_dolar_to_eth)]]</div>
+                    <div>[[_formatEther(totalEther)]]</div>
+                  </div>
+                  
+                  <shop-button responsive id="submitBox">
+                    <input type="button" on-click="_submit" value="Confirm Receipt of Order">
+                  </shop-button>
+                </section>
+              </div>
+            </form>
+          </iron-form>
+        </div>
+
+        <!-- Success message UI -->
+        <header state="success">
+          <h1>Thank you</h1>
+          <p>[[response.successMessage]]</p>
+          <shop-button responsive>
+            <a href="/">Finish</a>
+          </shop-button>
+        </header>
+
+        <!-- Error message UI -->
+        <header state="error">
+          <h1>We couldn&acute;t process your order</h1>
+          <p id="errorMessage">[[response.errorMessage]]</p>
+          <shop-button responsive>
+            <a href="/checkout-confirm-crypto">Try again</a>
+          </shop-button>
+        </header>
+
+      </iron-pages>
+
+    </div>
+
+    <!-- Handles the routing for the success and error subroutes -->
+    <app-route active="{{routeActive}}" data="{{routeData}}" route="[[route]]" pattern="/:state">
+    </app-route>
+
+    <!-- Show spinner when waiting for the server to repond -->
+    <paper-spinner-lite active="[[waiting]]"></paper-spinner-lite>
+
+    <confirm-dialog id="confirmTransactionDialog"></confirm-dialog>
+
+  </template>
+
+  <script>
+
+    class ShopCheckoutConfirm extends Polymer.Element {
+
+      static get is() { return 'shop-checkout-confirm-crypto'; }
+
+      static get properties() {
+        return {
+
+          /**
+           * The route for the state. e.g. `success` and `error` are mounted in the
+           * `checkout/` route.
+           */
+          route: {
+            type: Object,
+            notify: true
+          },
+
+          /**
+           * The total price of the contents in the user's cart.
+           */
+          total: Number,
+
+          totalEther: {
+            type: Number,
+            computed: '_toEther(total)'
+          },
+
+          /**
+           * The state of the form. Valid values are:
+           * `init`, `success` and `error`.
+           */
+          state: {
+            type: String,
+            value: 'init'
+          },
+
+          /**
+           * An array containing the items in the cart.
+           */
+          cart: Array,
+
+          /**
+           * The server's response.
+           */
+          response: Object,
+
+          /**
+           * If true, the user must enter a billing address.
+           */
+          hasBillingAddress: {
+            type: Boolean,
+            value: false
+          },
+
+          /**
+           * If true, shop-checkout is currently visible on the screen.
+           */
+          visible: {
+            type: Boolean,
+            observer: '_visibleChanged'
+          },
+
+          /**
+           * True when waiting for the server to repond.
+           */
+          waiting: {
+            type: Boolean,
+            readOnly: true,
+            reflectToAttribute: true
+          },
+
+          /**
+           * True when waiting for the server to repond.
+           */
+          _hasItems: {
+            type: Boolean,
+            computed: '_computeHasItem(cart.length)'
+          },
+
+          cryptoAddress: {
+            type: String,
+          },
+
+          myEthAddress: {
+            type: String
+          },
+
+          tax_dolar_to_eth: {
+            type: Number,
+            value: 0.004347826, // TAX ethers per dolar
+          },
+
+          buyerEmail: {
+            type: String,
+            value: 'teste@chaincommerce.com'
+          },
+
+        }
+      }
+
+      static get observers() {
+        return [
+          '_updateState(routeActive, routeData)'
+        ]
+      }
+
+      ready() {
+        super.ready();
+        let self = this;
+        console.log('ShopCheckoutConfirm.ready()');
+
+        // get the Ethrereum wallet client address
+        Polymer.RenderStatus.afterNextRender(this, function () {
+          let carbonoConnect = new CarbonoConnect();
+          // connect to ethereum client instance get the wallet address
+          carbonoConnect.initWeb3(function (_address, _all) {
+            // set address to the form input
+            self.myEthAddress = _address;
+            console.log('All address', _all);
+            if (_all.length >= 2) {
+              // if there is mode than 2 accounts, pick the last one
+              self.cryptoAddress = _all[_all.length - 1]; // last one address
+              self.$.cryptoAddress.value = self.cryptoAddress;
+            }
+          });
+        });
+      }
+
+      _submit(e) {
+        if (this._validateForm()) {
+          // To send the form data to the server:
+          // 2) Remove the code below.
+          // 3) Uncomment `this.$.checkoutForm.submit()`.
+
+          this.$.checkoutForm.dispatchEvent(new CustomEvent('iron-form-presubmit', {
+            composed: true
+          }));
+
+          this.$.checkoutForm.submit();
+
+        }
+      }
+
+      _toEther(value) {
+        return value * this.tax_dolar_to_eth;
+      }
+
+      _executeTransaction(_body) {
+        // lucasa            
+        console.log("Form body ", _body);
+
+        const _address = _body["myEthAddress"];
+
+        let _url = "carbono-transaction.html";
+        let _elementName = "carbono-transaction";
+
+        let _products = JSON.stringify(_body.cartItems);
+        console.log("_products ", _products);
+
+        this.buyerEmail = 'teste@carbono.io';
+        // this.cryptoAddress = this.cart.cryptoAddress;
+        console.log('USER EMAIL = ' + this.buyerEmail);
+
+        let self = this;
+        // load it on-the-fly
+        Polymer.RenderStatus.afterNextRender(this, () => {
+          Polymer.importHref(this.resolveUrl(_url), () => {
+            // Create a new instance
+            var _element = document.createElement(_elementName);
+            // this.$.container.appendChild(_element); // And add it to the container
+            console.log("Imported lazy component: ", _elementName, _element);
+            _element.address = _address;
+            _element.ether_value = self.total * self.tax_dolar_to_eth;
+            _element.contract_abi_url = "contracts/ChainCommerce.json";
+            _element.contract_method = "buyOffer";
+            _element.method_parameters = [_products, this.buyerEmail, this.cryptoAddress];
+
+            console.log("tax_dolar_to_eth", self.tax_dolar_to_eth);
+
+            // listen to the transaction event, success or error
+            _element.addEventListener('transaction', function (e) {
+              console.log('Transaction results', e); // true
+              self._setWaiting(false);
+              if (e.detail.success) {
+                self._pushState('success');
+                self._reset();
+                self.dispatchEvent(new CustomEvent('clear-cart', { bubbles: true, composed: true }));
+              } else {
+                self._pushState('error');
+              }
+            });
+
+            Polymer.dom(self).appendChild(_element);
+
+          });
+        });
+      }
+
+      /**
+       * Sets the valid state and updates the location.
+       */
+      _pushState(state) {
+        this._validState = state;
+        this.set('route.path', state);
+      }
+
+      /**
+       * Checks that the `:state` subroute is correct. That is, the state has been pushed
+       * after receiving response from the server. e.g. Users can only go to `/checkout/success`
+       * if the server responsed with a success message.
+       */
+      _updateState(active, routeData) {
+        if (active && routeData) {
+          let state = routeData.state;
+          if (this._validState === state) {
+            this.state = state;
+            this._validState = '';
+            return;
+          }
+        }
+        this.state = 'init';
+      }
+
+      /**
+       * Sets the initial state.
+       */
+      _reset() {
+        let form = this.$.checkoutForm;
+
+        this._setWaiting(false);
+        try {
+          form.reset();
+        } catch (error) {
+          // console.log(error);
+        }
+
+        let nativeForm = form._form;
+        if (!nativeForm) {
+          return;
+        }
+
+        // Remove the `aria-invalid` attribute from the form inputs.
+        for (let el, i = 0; el = nativeForm.elements[i], i < nativeForm.elements.length; i++) {
+          el.removeAttribute('aria-invalid');
+        }
+      }
+
+      /**
+       * Validates the form's inputs and adds the `aria-invalid` attribute to the inputs
+       * that don't match the pattern specified in the markup.
+       */
+      _validateForm() {
+        let form = this.$.checkoutForm;
+        let firstInvalid = false;
+        let nativeForm = form._form;
+
+        for (let el, i = 0; el = nativeForm.elements[i], i < nativeForm.elements.length; i++) {
+          if (el.checkValidity()) {
+            el.removeAttribute('aria-invalid');
+          } else {
+            if (!firstInvalid) {
+              // announce error message
+              if (el.nextElementSibling) {
+                this.dispatchEvent(new CustomEvent('announce', {
+                  bubbles: true, composed: true,
+                  detail: el.nextElementSibling.getAttribute('error-message')
+                }));
+              }
+              if (el.scrollIntoViewIfNeeded) {
+                // safari, chrome
+                el.scrollIntoViewIfNeeded();
+              } else {
+                // firefox, edge, ie
+                el.scrollIntoView(false);
+              }
+              el.focus();
+              firstInvalid = true;
+            }
+            el.setAttribute('aria-invalid', 'true');
+          }
+        }
+        return !firstInvalid;
+      }
+
+      /**
+       * Adds the cart data to the payload that will be sent to the server
+       * and updates the UI to reflect the waiting state.
+       */
+      _willSendRequest(e) {
+        let self = this;
+        console.log("_willSendRequest", e);
+        // event.preventDefault();
+
+        let form = e.target;
+        let body = form.request && form.request.body;
+
+        this._setWaiting(true);
+
+        console.log("body", body);
+
+        if (!body) {
+          return;
+        }
+        // Populate the request body where `cartItemsId[i]` is the ID and `cartItemsQuantity[i]`
+        // is the quantity for some item `i`.
+        body.cartItems = [];
+        body.cartItemsId = [];
+        body.cartItemsQuantity = [];
+
+        this.cart.forEach((cartItem) => {
+          body.cartItemsId.push(cartItem.item.name);
+          body.cartItemsQuantity.push(cartItem.quantity);
+          body.cartItems.push({
+            id: cartItem.item.name,
+            quantity: cartItem.quantity
+          });
+        });
+
+        var dialog = this.$.confirmTransactionDialog;//document.getElementById('dialog');
+        console.log('dialog: ', dialog);
+        // this.$.dialog = ;
+        dialog.modal = true;
+        dialog.heading = "Ethereum Crypto Payment";
+        dialog.body = "Confirm transfer " + this._formatEther(this.totalEther) + " Ether.\nTo seller's addresses: " + this.cryptoAddress + " ?";
+        dialog.confirm = "Yes, complete the transaction";
+        dialog.cancel = "No, abort transaction";
+        dialog.onResult = function (result) {
+          if (result) {
+            self._executeTransaction(body);
+          } else {
+            self._setWaiting(false);
+            console.log("Transaction aborted!");
+            self._pushState('error');
+          }
+        };
+
+        dialog.show();
+      }
+
+      /**
+       * Handles the response from the server by checking the response status
+       * and transitioning to the success or error UI.
+       */
+      _didReceiveResponse(e) {
+        console.log("_didReceiveResponse", e);
+        let response = e.detail.response;
+
+        this.response = response;
+        this._setWaiting(true);
+
+        if (response.success) {
+          this._pushState('success');
+          this._reset();
+          this.dispatchEvent(new CustomEvent('clear-cart', { bubbles: true, composed: true }));
+        } else {
+          this._pushState('error');
+        }
+      }
+
+      _toggleBillingAddress(e) {
+        this.hasBillingAddress = e.target.checked;
+
+        if (this.hasBillingAddress) {
+          this.$.billAddress.focus();
+        }
+      }
+
+      _computeHasItem(cartLength) {
+        return cartLength > 0;
+      }
+
+      _formatPrice(total) {
+        return isNaN(total) ? '' : '$' + total.toFixed(2);
+      }
+
+      _formatEther(value) {
+        return isNaN(value) ? '' : value.toFixed(6) + ' ETH';
+      }
+
+      _formatTaxDolarEther(tax) {
+        return isNaN(tax) ? '' : (1 / tax).toFixed(2) + ' dolars';
+      }
+
+      _getEntryTotal(entry) {
+        return this._formatPrice(entry.quantity * entry.item.price);
+      }
+
+      _visibleChanged(visible) {
+        if (!visible) {
+          return;
+        }
+        // Reset the UI states
+        this._reset();
+        // Notify the page's title
+        this.dispatchEvent(new CustomEvent('change-section', {
+          bubbles: true, composed: true, detail: { title: 'Checkout' }
+        }));
+      }
+
+    }
+
+    customElements.define(ShopCheckoutConfirm.is, ShopCheckoutConfirm);
+
+  </script>
+
+</dom-module>

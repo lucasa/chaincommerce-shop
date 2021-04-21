@@ -1,0 +1,138 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="shop-common-styles.html">
+<!-- <link rel="import" href="carbono-info.html">
+<link rel="import" href="carbono-transaction.html"> -->
+
+<dom-module id="shop-user">
+  <template>
+    <style include="shop-common-styles shop-button shop-select">
+      shop-button {
+        display: inline-block;
+      }
+
+      shop-button>* {
+        display: inline-block;
+        box-sizing: border-box;
+        border: 2px solid #000;
+        background-color: #FFF;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--app-primary-color);
+        margin: 0;
+        padding: 8px 44px;
+        text-align: center;
+        text-decoration: none;
+        text-transform: uppercase;
+        border-radius: 0;
+        outline: none;
+        -webkit-appearance: none;
+      }
+
+      shop-button>*:focus {
+        background-color: #c5cad3;
+      }
+
+      shop-button>*:active {
+        background-color: #000;
+        color: #FFF;
+      }
+
+      @media (max-width: 767px) {
+
+        /* Responsive buttons are used in shop-detail, shop-cart and shop-checkout */
+        shop-button[responsive] {
+          @apply --layout-fixed-bottom;
+          height: 64px;
+          z-index: 1;
+        }
+
+        shop-button[responsive]>* {
+          background-color: var(--app-accent-color);
+          border: none;
+          color: white;
+          padding: 20px;
+          width: 100%;
+          height: 100%;
+          font-size: 15px;
+        }
+
+        shop-button[responsive]>*:focus {
+          background-color: var(--app-accent-color);
+        }
+
+      }
+    </style>
+
+    <h2>My Ethereum Account</h2>
+    <div class="main-frame">
+      <a href="#"><output id="wallet_address" type="text" value="[[wallet_address]]"></a>
+      <!-- qrcode_base64=[[qrcode_base64]] -->
+    </div>
+
+  </template>
+  <script>
+    class ShopUser extends Polymer.Element {
+
+      constructor() {
+        super();
+        console.log('ShopUser()');
+        this.contract_url = 'contracts/contract.json';
+        this.qrcode_base64 = null;
+      }
+
+      ready() {
+        super.ready();
+        console.log('ShopUser.ready()');
+        const self = this;
+        // get the Ethrereum wallet client address
+        Polymer.RenderStatus.afterNextRender(this, function () {
+          const carbonoConnect = new CarbonoConnect();
+          // connect to ethereum client instance get the wallt address
+          carbonoConnect.initWeb3(function (_address, _all) {
+            // set address to the form input
+            self.wallet_address = _address;
+          });
+        });
+      }
+
+      connectedCallback() {
+        super.connectedCallback();
+        console.log('ShopUser.connectedCallback!');
+      }
+
+      static get is() { return 'shop-user'; }
+      static get properties() {
+        return {
+          wallet_address: {
+            type: String,
+            value: "",
+            notify: true
+          },
+          user_data: {
+            type: Object,
+            value: { data: "No user data" },
+            notify: true
+          },
+          contract_urls: {
+            type: Array,
+            computed: '(() => { return ["contracts/ChainCommerce.json"] })'
+          }
+        }
+      }
+
+    }
+
+    customElements.define(ShopUser.is, ShopUser);
+
+  </script>
+</dom-module>

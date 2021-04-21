@@ -1,0 +1,170 @@
+<!--
+@license
+Copyright (c) 2018 ...
+-->
+<!--<link rel="import" href="external-test.html">
+<link rel="import" href="external-test.html">
+<link rel="import" href="external-test.html">-->
+
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/iron-icon/iron-icon.html">
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../bower_components/paper-card/paper-card.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout.html">
+
+<!-- <script src="./js/web3.min.js"></script>
+<script src="./js/truffle-contract.js"></script> -->
+<script src="../bower_components/web3/dist/web3.js"></script>
+<script src="../bower_components/truffle-contract/dist/truffle-contract.js"></script>
+
+<link rel="import" href="./carbono-connect.html">
+
+<dom-module id="carbono-info">
+  <template>
+
+    <style is="custom-style">
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      paper-card {
+        max-width: 500px;
+      }
+
+      .cafe-header {
+        @apply(--paper-font-headline);
+      }
+
+      .cafe-light {
+        color: var(--paper-grey-600);
+      }
+
+      .cafe-location {
+        float: right;
+        font-size: 15px;
+        vertical-align: middle;
+      }
+
+      .cafe-reserve {
+        color: var(--google-blue-500);
+      }
+
+      iron-icon.star {
+        --iron-icon-width: 16px;
+        --iron-icon-height: 16px;
+        color: var(--paper-amber-500);
+      }
+    </style>
+
+    <paper-card>
+      <div class="card-content">
+        <div class="cafe-header">Account Data</div>
+        <div class="cafe-rating">
+          <iron-icon class="star" icon="star"></iron-icon>
+          <iron-icon class="star" icon="star"></iron-icon>
+          <iron-icon class="star" icon="star"></iron-icon>
+          <iron-icon class="star" icon="star"></iron-icon>
+          <iron-icon class="star" icon="star"></iron-icon>
+        </div>
+
+        <p>Free Tutorials</p>
+        <p class="cafe-light">Enjoy theory and lab at the same time, right here
+          online. An online Lab for IT Professionals</p>
+      </div>
+    </paper-card>
+  </template>
+
+  <script>
+    class CarbonoInfo extends CarbonoConnect {
+      constructor() {
+        super();
+      }
+
+      static get is() { return 'carbono-info'; }
+      static get properties() {
+        return {
+          address: { // OUTPUT
+            type: String,
+            value: null,
+            readOnly: true,
+            notify: true,
+            observer: '_onAddress'
+          },
+          firstName: { // OUTPUT
+            type: String,
+            value: null,
+            readOnly: true,
+            notify: true
+          },
+          lastName: { // OUTPUT
+            type: String,
+            value: null,
+            readOnly: true,
+            notify: true
+          },
+          qrcode_base64: { // OUTPUT
+            type: String,
+            computed: '_generateQRCode(address)',
+            readOnly: true,
+            notify: true
+          },
+          data: { // OUTPUT
+            type: Object,
+            value: null,
+            readOnly: true,
+            computed: '((address,firstName,lastName,qrcode_base64) => { return {"address":address,"firstName":firstName,"lastName":lastName,"qrcode_base64":qrcode_base64} })',
+          },
+          web3: { // OUTPUT
+            type: Object,
+            value: null,
+            readOnly: true,
+            notify: true
+          },
+          web3_provider: { // OUTPUT
+            type: Object,
+            value: null,
+            readOnly: true,
+            notify: true
+          },
+        }
+      }
+
+      ready() {
+        super.ready();
+        console.log('CarbonoInfo.ready()');
+
+      }
+
+      // Element class can define custom element reactions
+      connectedCallback() {
+        super.connectedCallback();
+        console.log('CarbonoInfo.connectedCallback');
+      }
+
+      _generateQRCode(a) {
+        return '##### QRCODE ' + a;
+      }
+
+      _onAddress() {
+        if (this.address) {
+          // alert('address = ' + this.address);
+          Polymer.RenderStatus.afterNextRender(this, function () {
+            if (this.address) {
+              this._setFirstName('First');
+              this._setLastName('Last');
+              console.log('Shop User: '+this.firstName + " "+this.lastName);
+              // alert('Shop User: '+this.firstName + " "+this.lastName);
+            }
+          });
+        }
+      }
+
+    }// class
+
+    customElements.define(CarbonoInfo.is, CarbonoInfo);
+  </script>
+
+</dom-module>

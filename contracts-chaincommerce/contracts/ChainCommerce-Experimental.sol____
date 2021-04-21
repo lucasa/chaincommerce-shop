@@ -1,0 +1,295 @@
+pragma solidity ^0.4.24;
+// pragma experimental ABIEncoderV2;
+
+// contract Purchase {
+//     uint value;
+//     address seller;
+//     address buyer;
+//     string state;
+
+//     // Ensure that `msg.value` is an even number.
+//     // Division will truncate if it is an odd number.
+//     // Check via multiplication that it wasn't an odd number.
+//     constructor() public payable {
+//         seller = msg.sender;
+//         value = msg.value / 2;
+//         require((2 * value) == msg.value, "Value has to be even.");
+//     }
+
+//     modifier condition(bool _condition) {
+//         require(_condition, "Condition failed!");
+//         _;
+//     }
+
+//     modifier onlyBuyer() {
+//         require(
+//             msg.sender == buyer,
+//             "Only buyer can call this."
+//         );
+//         _;
+//     }
+
+//     modifier onlySeller() {
+//         require(
+//             msg.sender == seller,
+//             "Only seller can call this."
+//         );
+//         _;
+//     }
+
+//     modifier inState(string memory _state) {
+//         require(
+//             keccak256(abi.encodePacked(state)) == keccak256(abi.encodePacked(_state)), "Invalid state.");
+//         _;
+//     }
+
+//     event Aborted();
+//     event PurchaseConfirmed();
+//     event ItemReceived();
+
+//     function getState() public view returns (string) {
+//         return state;
+//     }
+
+//     function getSeller() public view returns (address) {
+//         return seller;
+//     }
+
+//     function getBuyer() public view returns (address) {
+//         return buyer;
+//     }
+
+//     /// Abort the purchase and reclaim the ether.
+//     /// Can only be called by the seller before
+//     /// the contract is locked.
+//     function abort()
+//         public
+//         onlySeller
+//         inState("Created")
+//     {
+//         seller.transfer(address(this).balance);
+//         state = "Inactive";
+//         emit Aborted();
+//     }
+
+//     /// Confirm the purchase as buyer.
+//     /// Transaction has to include `2 * value` ether.
+//     /// The ether will be locked until confirmReceived
+//     /// is called.
+//     function confirmPurchase()
+//         public
+//         payable
+//         condition(msg.value == (2 * value))
+//     {
+//         buyer = msg.sender;
+//         state = "Locked";
+//         emit PurchaseConfirmed();
+//     }
+
+//     /// Confirm that you (the buyer) received the item.
+//     /// This will release the locked ether.
+//     function confirmReceived()
+//         public
+//         onlyBuyer
+//         inState("Locked")
+//     {
+//         // It is important to change the state first because
+//         // otherwise, the contracts called using `send` below
+//         // can call in again here.
+//         state = "Inactive";
+
+//         // NOTE: This actually allows both the buyer and the seller to
+//         // block the refund - the withdraw pattern should be used.
+
+//         // buyer.transfer(value);
+//         // seller.transfer(address(this).balance);
+
+//         buyer.send(value);
+//         seller.send(address(this).balance);
+
+//         emit ItemReceived();
+//     }
+// }
+
+contract ChainCommerce  {
+
+    // enum State { Created, Locked, Inactive }
+
+    // mapping (address => User) sellers;
+
+    mapping (string => Product) userOffers;
+
+    event NewProduct(string productName, uint price, address seller);
+    event NewUser(string userName);
+    event NewBuy(string productID, uint price, string streetCityAddress);
+    event ProductReceived(string productID);
+
+    constructor() public { }
+
+    modifier condition(bool _condition) {
+        require(_condition, "All parameter are obrigatory");
+        _;
+    }
+
+    // Modifiers can receive arguments:
+    modifier minimum(uint price) {
+        if (msg.value >= price) {
+            _;
+        }
+    }
+
+    modifier active(string id) {
+        require(userOffers[id].buyer == address(0), "The offer is closed!");
+        _;
+    }
+
+    modifier only_seller(string id) {
+        require(userOffers[id].seller == msg.sender, "You are not the owner of this offer.");
+        _;
+    }
+
+    modifier only_buyer(string id) {
+        require(userOffers[id].buyer == msg.sender, "You are not the buyer of this offer.");
+        _;
+    }
+
+    // modifier state_create() {
+    //     bytes32 state = keccak256(abi.encodePacked(userOffers[msg.sender].state));
+    //     require(state == keccak256(abi.encodePacked("Created")), "This negotiation is not open.");
+    //     _;
+    // }
+
+    modifier closed(string id) {
+        bytes32 state = keccak256(abi.encodePacked(userOffers[id].state));
+        require(state == keccak256(abi.encodePacked("Locked")), "This negotiation is locked.");
+        _;
+    }
+    
+    struct Product {
+        string name;
+        address seller;
+        address buyer;
+        string buyerEmail;
+        uint price;
+        string info;
+        bool isExist;
+        string state;
+        address purchaseAddress;
+    }
+
+    // struct User {
+    //     address addr;
+    //     string name;
+    //     string email;
+    //     uint8 reputation;
+    //     bool isExist;
+    // }
+    
+
+    function getOffer(string id) public view returns(string, string, uint, address) {      
+        return (userOffers[id].name, userOffers[id].info, userOffers[id].price, userOffers[id].seller);
+    }
+
+    function dumpOffer(string id) public view returns(string, string, uint, address, address) {
+        return (userOffers[id].name, userOffers[id].info, userOffers[id].price, userOffers[id].seller, userOffers[id].buyer);
+    }
+
+    function getNegotiationState(string id) public view returns(string) {      
+        return userOffers[id].state;
+    }
+    
+    function setupDemo(string id)
+    public
+    payable
+    {        
+        Product storage _product = userOffers[id];
+        _product.name = "Product Demo 3.0.1";
+        _product.price = msg.value;
+        _product.seller = msg.sender;
+        emit NewProduct(_product.name, _product.price, _product.seller);
+        // publishOffer(_userName, "email", "product name", "img url", "info");
+        // return string(abi.encodePacked("Novo Produto ", _userName, " ", _product.seller));
+    }
+
+    function publishOffer(string _productId, string _productName, string _info)
+    public
+    payable {
+        Product storage _product = userOffers[_productId];
+        
+        // User storage _user = sellers[msg.sender];
+        // _user.addr = msg.sender;
+        // _user.name = _userName;
+        // _user.email = _email;
+        // _user.reputation = 0;
+        // _user.isExist = true;
+        // emit NewUser(_user.name);
+        
+        // set the seller as the transaction caller
+        _product.seller = msg.sender;
+        _product.price = msg.value / 2;
+        _product.name = _productName;
+        _product.info = _info;
+
+        // create the payment contract
+        // transfer all seller's funds to real negotiation contract
+        // TODO: retain some tax
+        // Purchase _purchaseContract = (new Purchase).value(msg.value)();
+
+        // store the negotiation contract
+        // _product.purchaseAddress = _purchaseContract.address;
+        _product.state = "Created";
+
+        emit NewProduct(_product.name, _product.price, _product.seller);
+    }
+
+    function cancelOffer(string product_id) public
+    only_seller(product_id)
+    active(product_id)
+    {
+        // Purchase purchaseContract = Purchase(userOffers[id].purchaseAddress);
+        // purchaseContract.abort();
+        userOffers[product_id].state = "Inative";
+    }
+
+    event DEBUG_ADDRESS(string text, address data);
+    event DEBUG_STRING(string text, string data);
+
+    function buyOffer(string _productId, string _buyerEmail)
+    public
+    payable
+    active(_productId)
+    {
+        emit DEBUG_STRING("buy product id", _productId);
+
+        // anynone can buy
+        // Purchase purchaseContract = Purchase(userOffers[_productId].purchaseAddress);
+        // emit DEBUG("buyOffer purchase contract address", userOffers[_productId].purchaseAddress);
+
+        userOffers[_productId].buyer = msg.sender;
+        emit DEBUG_ADDRESS("buyer", msg.sender);
+        
+        // transfer all buyer's funds to real negotiation contract
+        // TODO: retain some tax
+        // purchaseContract.confirmPurchase.value(msg.value)();
+
+        userOffers[_productId].seller.transfer(msg.value);
+        userOffers[_productId].state = "Locked";
+        // TODO: store the buyers's email
+        userOffers[_productId].buyerEmail = _buyerEmail;
+
+        emit NewBuy(userOffers[_productId].name, msg.value, userOffers[_productId].buyerEmail);
+    }
+
+    function confirmReceived(string _productId)
+    public
+    closed(_productId)
+    only_buyer(_productId)
+    {
+        emit DEBUG_STRING("buyer confirming received",_productId);
+        // Purchase purchaseContract = Purchase(userOffers[id].purchaseAddress);
+        emit ProductReceived(_productId);
+        userOffers[_productId].state = "Inactive";
+        // purchaseContract.confirmReceived();
+    }
+}
+

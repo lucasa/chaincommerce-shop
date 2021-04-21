@@ -1,0 +1,248 @@
+<!--
+@license
+Copyright (c) 2018 ...
+-->
+<!--<link rel="import" href="external-test.html">
+<link rel="import" href="external-test.html">
+<link rel="import" href="external-test.html">-->
+
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/iron-icon/iron-icon.html">
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="../bower_components/paper-card/paper-card.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout.html">
+
+<!-- <script src="./js/web3.min.js"></script>
+<script src="./js/truffle-contract.js"></script> -->
+<script src="../bower_components/web3/dist/web3.js"></script>
+<script src="../bower_components/truffle-contract/dist/truffle-contract.js"></script>
+
+<link rel="import" href="./carbono-connect.html">
+<link rel="import" href="./carbono-notify.html">
+
+<dom-module id="carbono-transaction">
+
+  <template>
+    <style>
+    </style>
+    <h2>Contract Transactions to Execute</h2>
+    <p>
+      My Address
+      <input type="text" name="client-address" id="client-address" value="[[address]]">
+    </p>
+    <p>
+      Contract Address
+      <input type="text" name="contract-address" id="contract-address" value="[[contrat_address]]">
+    </p>
+    <p>
+      Contract ABI
+      <input type="textarea" name="contract-abi-url" id="contract-abi-url" value="[[contract_abi_url]]">
+    </p>
+    <p>
+      Truffle contracts
+      <input type="textarea" name="raw-TruffleContract-class" id="raw-TruffleContract-class" value="[[truffle_contract_class]]">
+    </p>
+    <p>
+      Call Method
+      <input type="textarea" name="call-method" id="call-method" value="[[contract_method]]">
+    </p>
+    <p>
+      Call Parameters
+      <input type="textarea" name="call-parameters" id="call-parameters" value="[[method_parameters]]">
+    </p>
+    <p>
+      Return data
+      <input type="textarea" name="return-data" id="return-data" value="[[method_return_data]]">
+    </p>
+
+  </template>
+
+
+  <script>
+    class CarbonoTransaction extends CarbonoConnect {
+      constructor() {
+        super();
+      }
+
+      static get is() { return 'carbono-transaction'; }
+      static get properties() {
+        return {
+          // TODO: set read only for output properties
+          truffle_contract_class: {
+            // OUTPUT
+            type: Object,
+            // readOnly: true,
+            reflectToAttribute: true,
+            value: null
+          },
+          address: {
+            type: String,
+            value: null,
+            reflectToAttribute: true,
+            // observer: '_setAddress'
+          },
+          // contract_address: {
+          //   type: String,
+          //   value: null,
+          //   reflectToAttribute: true,
+          // },
+          contract_abi_url: {
+            type: String,
+            value: null,
+            observer: '_load'
+          },
+          contract_method: {
+            type: String,
+            value: null,
+          },
+          method_parameters: {
+            type: Array,
+            value: null,
+          },
+          dolar_value: {
+            type: Number,
+            value: null,
+          },
+          ether_value: {
+            type: Number,
+            value: null,
+          },
+          call_success: {
+            // OUTPUT
+            type: String,
+            value: null,
+            notify: true,
+            reflectToAttribute: true,
+          },
+
+        }
+      }
+
+      ready() {
+        super.ready();
+        console.log('CarbonoTransaction.ready()');
+      }
+
+      _load(_url) {
+        const self = this;
+        if (_url) {
+          console.log('CarbonoTransaction._load with address', this.address, "contract_abi_url", _url);
+          //TODO: verify if the external address is one of my wallets
+          Polymer.RenderStatus.afterNextRender(this, function () {
+            this.initWeb3((_add, _accounts) => {
+              console.log('CarbonoTransaction connection ok, going to load the contracts...');
+              this._loadContracts(_url);
+            }, self.address);
+          });
+        }
+      }
+
+      // Element class can define custom element reactions
+      connectedCallback() {
+        super.connectedCallback();
+        console.log('CarbonoTransaction.connectedCallback()');
+      }
+
+      
+      _callContractMethod(_contractInstance, _method, _parameters, _value, _address) {
+        const self = this;
+        console.log('CarbonoTransaction._callContractMethod ', 'client address: ', _address, 'contract method: ', _method, 'method parameters: ', _parameters);
+
+        console.log('Contract instance ', _contractInstance);
+        console.log('Going to execute method ' + _method);
+        console.log('Going to execute parameters: ', _parameters);
+
+        // call promise with arguments
+        return _method.apply(_contractInstance, _parameters);
+        // return _contractInstance.test.call('lucasa', { from: _address, value: _value });
+      }
+
+      _loadContracts(_url) {
+        console.log('CarbonoTransaction.loadContracts: ', _url);
+        console.log('Initializing contracts...');
+
+        const self = this;
+
+        if (_url) {
+          self._getResource({
+            url: _url,
+            onLoad(e) {
+              // get the contract JSon ABI
+              const _contractJson = JSON.parse(e.target.responseText);
+              console.log('Loaded contract Json ', _contractJson);
+
+              // Get the necessary contract artifact file and instantiate it with truffle-contract.
+              // let _truffleContract = self.contract(_contractJson);
+              const _truffleContract = TruffleContract(_contractJson);
+              console.log('Contract loaded truffleContract ', _truffleContract);
+
+              // Set the provider for our contract.
+              _truffleContract.setProvider(self.web3.currentProvider);
+              console.log('Contract loaded web3_provider ', self.web3.currentProvider);
+
+              console.log("Wallet address: ", self.address);
+
+              console.log('Going to access/deploy contract...');
+              // _truffleContract.new({ from: self.address, gas: 5000000 }).then
+              // _truffleContract.at("0xF2522ee34d52f8485d343ACdd78099b7EAeD36b4").then
+              _truffleContract.deployed().then
+                (function (_instance) {
+                  console.log("Contract Instance: ", _instance);
+                  console.log("Contract address: ", _instance.address);
+                  // call remote contract method
+                  console.log('Going to call remote method...');
+                  const _method = _instance[self.contract_method];
+                  const _parameters = self.method_parameters.concat([{ from: self.address, value: self.web3.toWei(self.ether_value, 'ether'), gas: 3000000 }]);
+                  const _totalPrice = self.web3.toWei(self.ether_value, 'ether').toString();
+                  console.log(_method, _parameters, _totalPrice, self.address);
+
+                  // call the method promise with the parameters
+                  return self._callContractMethod(_instance, _method, _parameters, _totalPrice, self.address);
+
+                }).then(function (_transactionAddress) {
+                  console.log('CarbonoTransaction._callContractMethod(' + self.contract_method + ') return = ', _transactionAddress);
+                  self.call_success = true;
+                  // TODO add a contract transaction address readlony output
+
+                  self.dispatchEvent(new CustomEvent('transaction', {
+                    detail: {
+                      success: true,
+                      address: _transactionAddress,
+                      message: 'CarbonoTransaction._callContractMethod(' + self.contract_method + ') return = ' + _transactionAddress
+                    }
+                  }));
+
+                }).catch(function (err) {
+                  console.log(err.message);
+                  self.call_success = false;
+                  self.dispatchEvent(new CustomEvent('transaction', {
+                    detail: {
+                      success: false,
+                      address: '',
+                      message: err.message
+                    }
+                  }));
+                  throw err;
+                });
+
+            },
+            onError(e) {
+              // self._setFailure(true);
+              throw e;
+            }
+          }, 3);
+        } else {
+          throw 'Could not load a empty contract!'
+        }
+
+      }
+    }// class
+
+    customElements.define(CarbonoTransaction.is, CarbonoTransaction);
+
+  </script>
+</dom-module>
+
+<!----------------------------------------------------------------------------->

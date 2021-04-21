@@ -1,0 +1,220 @@
+<!--
+@license
+Copyright (c) 2018 ...
+-->
+<!--<link rel="import" href="external-test.html">
+<link rel="import" href="external-test.html">
+<link rel="import" href="external-test.html">-->
+
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/iron-icon/iron-icon.html">
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="../bower_components/paper-card/paper-card.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout.html">
+
+<script src="../bower_components/web3/dist/web3.js"></script>
+<script src="../bower_components/truffle-contract/dist/truffle-contract.js"></script>
+<!-- <script src="./js/web3.min.js"></script>
+<script src="./js/truffle-contract.js"></script> -->
+
+<link rel="import" href="./carbono-notify.html">
+
+<dom-module id="carbono-connect">
+
+  <template strip-whitespace>
+
+    <style>
+
+    </style>
+
+    <div class="not-connected" hidden$="{{ connected }}">
+      <p class="">offline..</p>
+      <iron-icon icon="refresh"></iron-icon>
+    </div>
+    <div class="connected" hidden$="{{ ! connected }}" alt="Connected as {{ address }}">
+      <p class="show-hide">
+        <paper-icon-button src="images/ethereum_icon.svg" class="ethereum-button"></paper-icon-button>
+        </iron-iconset>
+      </p>
+    </div>
+  </template>
+
+  <script>
+    class CarbonoConnect extends Polymer.Element {
+      constructor() {
+        super();
+        // window.carbono = {
+        //   unload() {
+        //     console.log('Exiting Carbono Bus.');
+        //     window.carbono = null;
+        //     // delete this;
+        //   }
+        // };
+        this.connecting = false;
+      }
+
+      static get is() { return 'carbono-connect'; }
+      static get properties() {
+        return {
+          connected: { // OUTPUT
+            type: Boolean,
+            value: false,
+            notify: true
+          },
+          web3: { // OUTPUT
+            type: Object,
+            notify: true,
+            reflectToAttribute: true,
+          },
+          web3_provider: { // OUTPUT
+            type: Object,
+            notify: true
+          },
+          loadcomplete: { // INPUT
+            type: Boolean,
+            value: false,
+            reflectToAttribute: true,
+            notify: true,
+            observer: '_notifyStatus'
+          },
+          address: { // OUTPUT
+            type: String,
+            value: null,
+            reflectToAttribute: true,
+            notify: true
+          },
+          all_address: { // OUTPUT
+            type: Array,
+            notify: true,
+            value: null,
+            reflectToAttribute: true,
+          }
+        }
+      }
+
+      ready() {
+        super.ready();
+        // Defer non-critical work until after first paint
+        console.log('CarbonoConnect.connecting = ' + this.connecting);
+        if (!this.address) {
+          console.log('CarbonoConnect.ready()');
+          Polymer.RenderStatus.afterNextRender(this, function () {
+            this.connecting = true;
+            console.log('CarbonoConnect.connecting = ' + this.connecting);
+            this.initWeb3();
+          });
+        }
+      }
+
+      // Element class can define custom element reactions
+      connectedCallback() {
+        super.connectedCallback();
+        // console.log('CarbonoConnect.connectedCallback created!');
+      }
+
+      initWeb3(callback=function(){}) {
+        // console.log(this, 'initWeb3 - Initialize web3 and set the provider to the testRPC ', window.web3);
+        if (typeof window.web3 !== 'undefined') {
+          console.log('Already connected to a Web3 provider: ', window.web3);
+          this.web3_provider = window.web3.currentProvider;
+          this.web3 = new Web3(window.web3.currentProvider);
+        } else {
+          // set the provider you want from Web3.providers
+          console.log(this, 'Connecting to localhost:9545 ethereum rpc server');
+          this.web3_provider = new Web3.providers.HttpProvider('http://127.0.0.1:9545');
+          // console.log('HTTP provider instantiated ', this.web3_provider);
+          this.web3 = new Web3(this.web3_provider);
+            console.log('Web3 client instantiated ', this.web3);
+        }
+
+        // console.log('CarbonoConnect.web3_provider', this.web3_provider);
+        // console.log('CarbonoConnect.web3', this.web3);
+
+        // if are not connected yet
+        if (!this.connected) {
+          console.log('Carbono is not connected yet, trying...');
+          this.connect(callback);
+        }
+        
+        this.connecting = false;
+        // console.log('CarbonoConnect.connecting = ' + this.connecting);
+
+      }
+
+      connect(callback) {
+        let self = this;
+        this.connecting = true;
+        // console.log(this, 'App going to get web3.eth.getAccounts...', self.web3);
+        this.web3.eth.getAccounts(function (error, accounts) {
+          if (error) {
+            self.connecting = false;
+            console.log('Connect - Error when web3.eth.getAccounts');
+          } else {
+            self.all_address = accounts;
+            self.address = accounts[0];
+            self.connected = true;
+            console.log('CarbonoConnect connected!');
+            console.log('Connected Accounts ', self.all_address);
+            // console.log('CarbonoConnect.address ', self.address);
+          }
+
+          // if connectd, callback
+          if (self.address) {
+            if (callback) {
+              console.log('CarbonoConnect.connect call callback ', callback);
+              callback(self.address, accounts);
+            }
+          }
+          
+          // end of setup connection
+          self.connecting = false;
+          // console.log('CarbonoConnect.connecting = ' + self.connecting);
+
+        });
+
+      }
+
+      _notifyStatus(message = '') {
+        // console.log('carbono-notify page parent loadcomplete', this.loadcomplete);
+        // console.log('carbono-notify connected', this.connected);
+        Polymer.RenderStatus.afterNextRender(this, () => {
+          // Show the page parent is alread loaded and the network status changed.
+          if (this.loadcomplete) {
+            if (!this._notify) {
+              this._notify = document.createElement('carbono-notify');
+              this.root.appendChild(this._notify);
+            }
+            this._notify.innerHTML = self.connected ?
+              'You are offline from Ethereum.' : 'You are connected to a Ethereum Node. <br>';// + message;
+            this._notify.open();
+          }
+        });
+      }      
+
+      _getResource(rq, attempts) {
+        console.log('Going to load load: ' + rq.url);
+        let xhr = new XMLHttpRequest();
+        xhr.addEventListener('load', rq.onLoad.bind(this));
+        xhr.addEventListener('error', (e) => {
+          // Flaky connections might fail fetching resources
+          if (attempts > 1) {
+            this._getResourceDebouncer = Polymer.Debouncer.debounce(this._getResourceDebouncer,
+              Polymer.Async.timeOut.after(200), this._getResource.bind(this, rq, attempts - 1));
+          } else {
+            rq.onError.call(this, e);
+          }
+        });
+
+        xhr.open('GET', rq.url);
+        xhr.send();
+      }
+
+    }// class
+
+    customElements.define(CarbonoConnect.is, CarbonoConnect);
+  </script>
+</dom-module>
+
+<!----------------------------------------------------------------------------->
